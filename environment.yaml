@@ -17,5 +17,5 @@ dependencies:
   - cmake=3.27.9
   # for faster setup.up building?
   - ninja=1.11.1
-  - pip:
-    - -r requirements.lock.txt
+  # - pip:
+  #   - -r requirements.lock.txt

@@ -1,0 +1,9 @@
+git+https://github.com/KAIR-BAIR/nerfacc.git@v0.3.3
+git+https://github.com/NVlabs/tiny-cuda-nn/@212104156403bd87616c1a4f73a1c5f2c2e172a9#subdirectory=bindings/torch
+git+https://github.com/NVlabs/nvdiffrast.git@c5caf7bdb8a2448acc491a9faa47753972edd380
+git+https://github.com/ashawkey/envlight.git@ef492c03711c87287549a0283ee51199f45cbea4
+git+https://github.com/openai/CLIP.git@a1d071733d7111c9c014f024669f959182114e33
+git+https://github.com/ashawkey/kiuikit@b8956670173c8785118a1db474a10d987b76fc8c
+git+https://github.com/luca-medeiros/lang-segment-anything.git@134a48a81ebd691686187ecce2d016fb327a8852
+git+https://github.com/IDEA-Research/GroundingDINO.git
+git+https://github.com/facebookresearch/sam2.git
