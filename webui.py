@@ -534,7 +534,7 @@ class WebUI:
         def _(_):
             if not self.sam_enabled.value:
                 text_prompt = self.text_seg_prompt.value
-                print("[Segmentation Prompt]", text_prompt)
+                print("[Segmentation Prompt]", text_prompt, flush=True)
                 _, semantic_gaussian_mask = self.update_mask(text_prompt)
             else:
                 text_prompt = self.sam_group_name.value
@@ -769,7 +769,7 @@ class WebUI:
             this_frame = this_frame.moveaxis(0, -1)[None, ...]
             mask = self.text_segmentor(this_frame, text_prompt)[0].to(get_device())
             if self.use_sam:
-                print("Using SAM")
+                print("Using SAM", flush=True)
                 self.sam_features[idx] = self.sam_predictor.features
 
             masks.append(mask)
@@ -1137,7 +1137,7 @@ class WebUI:
                     OmegaConf.create({"min_step_percent": 0.02, "max_step_percent": 0.98})
                 )
             cur_2D_guidance = self.ip2p
-            print("using InstructPix2Pix!")
+            print("using InstructPix2Pix!", flush=True)
         elif self.guidance_type.value == "ControlNet-Pix2Pix":
             if not self.ctn_ip2p:
                 from threestudio.models.guidance.controlnet_guidance import (
@@ -1173,6 +1173,7 @@ class WebUI:
             server=self.server,
         )
         view_index_stack = list(range(len(edit_cameras)))
+        print("view_index_stack", view_index_stack, flush=True)
         for step in tqdm(range(self.edit_train_steps.value)):
             if not view_index_stack:
                 view_index_stack = list(range(len(edit_cameras)))
@@ -1225,6 +1226,8 @@ class WebUI:
             self.ctn_inpaint.set_progress_bar_config(disable=True)
             self.ctn_inpaint.safety_checker = None
 
+        print("Finish loading model", flush=True)
+
         with torch.no_grad():
             render_pkg = render(cam, self.gaussian, self.pipe, self.background_tensor)
 
@@ -1268,6 +1271,7 @@ class WebUI:
                 generator = torch.Generator(device="cuda").manual_seed(
                     self.inpaint_seed.value
                 )
+                print("inpaint:", self.edit_text.value, flush=True)
                 out = self.ctn_inpaint(
                     self.edit_text.value+", high quality, extremely detailed",
                     num_inference_steps=25,
@@ -1335,7 +1339,8 @@ class WebUI:
         p1.wait()
 
         print(
-            f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {cache_dir} --gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)}"
+            f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {cache_dir} --gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)}",
+            flush=True
         )
         cmd = f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {cache_dir} --gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)}".split(
             " "
@@ -1397,7 +1402,7 @@ class WebUI:
         max_valid_depth_mask = inpainted_depth < (max_object_depth + obj_depth_scale)
         valid_depth_mask = torch.logical_and(min_valid_depth_mask, max_valid_depth_mask)
         valid_percent = valid_depth_mask.sum() / min_valid_depth_mask.shape[0]
-        print("depth valid percent: ", valid_percent)
+        print("depth valid percent: ", valid_percent, flush=True)
 
         rendered_depth = rendered_depth[0, valid_depth_mask]
         inpainted_depth = inpainted_depth[valid_depth_mask.squeeze()]
@@ -1449,7 +1454,7 @@ class WebUI:
                 )[:2]
 
                 relative_scale = (real_scale / object_scale).mean()
-                print(relative_scale)
+                print(relative_scale, flush=True)
 
                 scale_gaussians(new_object_gaussian, relative_scale)
 

@@ -41,4 +41,11 @@ easydict==1.11
 albumentations==0.5.2
 webdataset==0.2.79
 ftfy
-viser
+viser # or install the modified fork instead; see README.
+addict
+pycocotools
+supervision
+yapf
+lightning
+gaussiansplatting/submodules/simple-knn
+gaussiansplatting/submodules/diff-gaussian-rasterization
