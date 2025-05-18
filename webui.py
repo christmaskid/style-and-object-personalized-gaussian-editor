@@ -1223,7 +1223,7 @@ class WebUI:
             pipe.enable_model_cpu_offload()
 
             self.ctn_inpaint = pipe
-            self.ctn_inpaint.set_progress_bar_config(disable=True)
+            self.ctn_inpaint.set_progress_bar_config(disable=False) #True)
             self.ctn_inpaint.safety_checker = None
 
         print("Finish loading model", flush=True)
@@ -1239,6 +1239,7 @@ class WebUI:
         frame = None
         while True:
             if self.inpaint_again:
+                print("inpaint_again", flush=True)
                 if frustum is not None:
                     frustum.remove()
                     frame.remove()
@@ -1281,6 +1282,7 @@ class WebUI:
                     mask_image=mask_in_pil,
                     control_image=control_image,
                 ).images[0]
+                print("Done inpaint", flush=True)
                 out = cv2.resize(
                     np.asarray(out),
                     origin_size,
@@ -1289,6 +1291,7 @@ class WebUI:
                     else cv2.INTER_AREA,
                 )
                 out = to_pil_image(out)
+                out.save("tmp_inpaint.png")
                 frame, frustum = ui_utils.new_frustum_from_cam(
                     list(self.server.get_clients().values())[0].camera,
                     self.server,
@@ -1298,11 +1301,18 @@ class WebUI:
             else:
                 if self.stop_training:
                     self.stop_training = False
+                    print("stop training", flush=True)
                     return
                 time.sleep(0.1)
             if self.inpaint_end_flag:
+                print("inpaint end", flush=True)
                 self.inpaint_end_flag = False
                 break
+            
+        print("here", flush=True)
+        del self.ctn_inpaint
+        self.ctn_inpaint = None
+
         self.inpaint_seed.visible = False
         self.inpaint_end.visible = False
         self.edit_text.visible = False
@@ -1316,6 +1326,7 @@ class WebUI:
             self.server,
             np.asarray(removed_bg),
         )
+        print("here", flush=True)
 
         cache_dir = Path("tmp_add").absolute().as_posix()
         os.makedirs(cache_dir, exist_ok=True)
@@ -1327,7 +1338,8 @@ class WebUI:
         gs_path = os.path.join(cache_dir, "inpaint_gs.obj")
         out.save(inpaint_path)
         removed_bg.save(removed_bg_path)
-
+        
+        print("Start p1", flush=True)
         p1 = subprocess.Popen(
             f"{sys.prefix}/bin/accelerate launch --config_file 1gpu.yaml test_mvdiffusion_seq.py "
             f"--save_dir {mv_image_dir} --config configs/mvdiffusion-joint-ortho-6views.yaml"
@@ -1338,13 +1350,10 @@ class WebUI:
         )
         p1.wait()
 
-        print(
-            f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {cache_dir} --gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)}",
-            flush=True
-        )
-        cmd = f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {cache_dir} --gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)}".split(
-            " "
-        )
+        cmd = f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {cache_dir}" \
+            + f"--gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)} --verbose"
+        print(cmd, flush=True)
+        cmd = cmd.split(" ")
         p2 = subprocess.Popen(
             cmd,
             cwd="threestudio/utils/wonder3D/instant-nsr-pl",
