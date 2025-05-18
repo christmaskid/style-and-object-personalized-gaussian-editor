@@ -59,3 +59,39 @@ python webui.py --gs_source <your-ply-file> --colmap_dir <dataset-dir>
 ```
 where `--gs_source` refers to the pre-trained .ply file (something like ../../point_cloud.ply), and `--colmap_dir` refers to where the Colmap output resides (the colmap output sparse folder should be the subfolder of `--colmap_dir`).
 See the [original repo](https://github.com/buaacyw/GaussianEditor/blob/master/docs/webui.md) for more information.
+
+## Checkpoint conversion
+### Custom diffusion
+Custom diffusion provides a script to convert the CompVis `delta_model.ckpt` to Diffusers `delta.bin`, please refer the [repo](https://github.com/adobe-research/custom-diffusion/tree/main?tab=readme-ov-file#checkpoint-conversions-for-stable-diffusion-v1-4).
+
+### Alternative method
+If the method above fails, follow the steps below to perform the conversion.
+
+1. Clone the Custom-diffusion and Diffusers repositories.
+```bash
+git clone https://github.com/adobe-research/custom-diffusion.git
+git clone https://github.com/huggingface/diffusers.git
+```
+2. Add the following line to `custom-diffusion/sample.py`:
+```python
+torch.save(model.state_dict(), "delta_model.ckpt")
+```
+3. Run the following commands to save `delta_model.ckpt`:
+```bash
+cd custom-diffusion
+python sample.py --prompt <prompt> --delta_ckpt <the downloaded checkpoint path> --ckpt <pretrained-model-path>
+```
+4. Run the following commands to perform the conversion:
+```bash
+cd ../diffusers
+python scripts/convert_original_stable_diffusion_to_diffusers.py --checkpoint_path ../custom-diffusion/delta_model.ckpt --dump_path <the path to save the model> --original_config_file ../custom-diffusion/stable-diffusion/configs/stable-diffusion/v1-inference.yaml
+```
+5. After completing the steps above, you can use the model as follows:
+```python
+import torch
+from diffusers import StableDiffusionPipeline
+
+pipe = StableDiffusionPipeline.from_pretrained(<dump_path>).to("cuda")
+img = pipe(prompt, num_inference_steps=100, guidance_scale=6.0, eta=1.0)
+img[0][0].save(filename)
+```
