@@ -11,8 +11,8 @@ from threestudio.models.prompt_processors.stable_diffusion_prompt_processor impo
 class EditGuidance:
     def __init__(self, guidance, gaussian, origin_frames, text_prompt, per_editing_step, edit_begin_step,
                  edit_until_step, lambda_l1, lambda_p, lambda_anchor_color, lambda_anchor_geo, lambda_anchor_scale,
-                 lambda_anchor_opacity, train_frames, train_frustums, cams, server
-                 ):
+                 lambda_anchor_opacity, train_frames, train_frustums, cams, server,
+                 custom_diffusion_model=None):
         self.guidance = guidance
         self.gaussian = gaussian
         self.per_editing_step = per_editing_step
@@ -33,12 +33,14 @@ class EditGuidance:
         self.visible = True
         self.prompt_utils = StableDiffusionPromptProcessor(
             {
-                "pretrained_model_name_or_path": "runwayml/stable-diffusion-v1-5",
+                "pretrained_model_name_or_path": 
+                    "runwayml/stable-diffusion-v1-5" if custom_diffusion_model is None 
+                        else custom_diffusion_model,
                 "prompt": text_prompt,
             }
         )()
         self.perceptual_loss = PerceptualLoss().eval().to(get_device())
-
+        print(custom_diffusion_model, text_prompt, flush=True)
 
     def __call__(self, rendering, view_index, step):
         self.gaussian.update_learning_rate(step)

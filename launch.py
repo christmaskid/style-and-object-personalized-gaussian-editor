@@ -106,6 +106,7 @@ def main(args, extras) -> None:
     system: BaseSystem = threestudio.find(cfg.system_type)(
         cfg.system, resumed=cfg.resume is not None
     )
+    print("system", system)
     system.set_save_dir(os.path.join(cfg.trial_dir, "save"))
     if system.cfg.loggers.wandb.enable:
         try:

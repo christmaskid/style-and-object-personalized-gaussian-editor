@@ -129,12 +129,9 @@ class GaussianEditor_Add(GaussianEditor):
             p1.wait()
 
         if self.cfg.cache_overwrite or not os.path.exists(mesh_path):
-            print(
-                f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {align_cache_dir} --gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)}"
-            )
-            cmd = f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {align_cache_dir} --gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)}".split(
-                " "
-            )
+            cmd = f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {align_cache_dir} --gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)}"
+            print(cmd, flush=True)
+            cmd = cmd.split(" ")
             p2 = subprocess.Popen(
                 cmd,
                 cwd="threestudio/utils/wonder3D/instant-nsr-pl",
@@ -279,3 +276,6 @@ class GaussianEditor_Add(GaussianEditor):
         self.gaussian.save_ply(merged_ply_path)
 
         self.render_all_view(cache_name="inpainted_render")
+
+    def training_step(self, batch, batch_idx):
+        pass

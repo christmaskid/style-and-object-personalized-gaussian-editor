@@ -103,6 +103,9 @@ class ControlNetGuidance(BaseObject):
         )
         self.scheduler.set_timesteps(self.cfg.diffusion_steps)
 
+        print("pipe", self.cfg.pretrained_model_name_or_path)
+        print("scheduler", self.cfg.ddim_scheduler_name_or_path, flush=True)
+
         if self.cfg.enable_memory_efficient_attention:
             if parse_version(torch.__version__) >= parse_version("2"):
                 threestudio.info(

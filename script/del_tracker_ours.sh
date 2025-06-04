@@ -1,0 +1,6 @@
+ROOT=/data/b09401064/tmp/ev/final/style-and-object-personalized-gaussian-editor
+DATA_DIR=${ROOT}/dataset
+
+python launch.py --config configs/del-ctn.yaml --train --gpu 0 \
+    trainer.max_steps=2000 system.fix_holes=True system.inpaint_scale=1 system.mask_dilate=15 system.max_densify_percent=0.01 system.anchor_weight_init_g0=0 system.anchor_weight_init=0.0 system.anchor_weight_multiplier=1.5 system.seg_prompt="tractor" system.loss.lambda_anchor_color=5 system.loss.lambda_anchor_geo=50 system.loss.lambda_anchor_scale=50 system.loss.lambda_anchor_opacity=50 system.densify_from_iter=0 system.densify_until_iter=5000 system.densification_interval=50 \
+    data.source=${DATA_DIR}/kitchen system.gs_source=${DATA_DIR}/kitchen/point_cloud/iteration_7000/point_cloud.ply system.loggers.wandb.enable=true system.loggers.wandb.name="del_tracker"  system.cache_overwrite=False system.inpaint_prompt="table, carpet"

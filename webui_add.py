@@ -69,8 +69,8 @@ from gaussiansplatting.scene.camera_scene import CamScene
 import math
 from GUI.EditGuidance import EditGuidance
 from GUI.DelGuidance import DelGuidance
+from GUI.AddGuidance import AddGuidance
 
-# from GUI.AddGuidance import AddGuidance
 import os
 import random
 import ui_utils
@@ -91,6 +91,7 @@ class WebUI:
         self.gs_source = cfg.gs_source
         self.colmap_dir = cfg.colmap_dir
         self.port = 8084
+        self.cfg = cfg
         # training cfg
 
         self.use_sam = False
@@ -450,16 +451,37 @@ class WebUI:
                 self.guidance_type.visible = False
 
             elif self.edit_type.value == "Add":
+                # self.edit_text.visible = True
+                # self.refine_text.visible = False
+                # for term in self.anchor_term:
+                #     term.visible = False
+                # self.inpaint_scale.visible = False
+                # self.mask_dilate.visible = False
+                # self.fix_holes.visible = False
+                # self.per_editing_step.visible = True
+                # self.edit_begin_step.visible = True
+                # self.edit_until_step.visible = True
+                # self.draw_bbox.visible = True
+                # self.left_up.visible = True
+                # self.right_down.visible = True
+                # self.inpaint_seed.visible = False
+                # self.inpaint_end.visible = False
+                # self.depth_scaler.visible = False
+                # self.depth_end.visible = False
+                # self.edit_frame_show.visible = False
+                # self.guidance_type.visible = False
                 self.edit_text.visible = True
                 self.refine_text.visible = False
                 for term in self.anchor_term:
-                    term.visible = False
-                self.inpaint_scale.visible = False
-                self.mask_dilate.visible = False
-                self.fix_holes.visible = False
-                self.per_editing_step.visible = True
-                self.edit_begin_step.visible = True
-                self.edit_until_step.visible = True
+                    term.visible = True
+                self.inpaint_scale.visible = True
+                self.mask_dilate.visible = True
+                self.fix_holes.visible = True
+                self.edit_cam_num.value = 24
+                self.densification_interval.value = 50
+                self.per_editing_step.visible = False
+                self.edit_begin_step.visible = False
+                self.edit_until_step.visible = False
                 self.draw_bbox.visible = True
                 self.left_up.visible = True
                 self.right_down.visible = True
@@ -467,7 +489,7 @@ class WebUI:
                 self.inpaint_end.visible = False
                 self.depth_scaler.visible = False
                 self.depth_end.visible = False
-                self.edit_frame_show.visible = False
+                self.edit_frame_show.visible = True
                 self.guidance_type.visible = False
 
         @self.save_button.on_click
@@ -506,24 +528,28 @@ class WebUI:
                 anchor_weight_multiplier=self.anchor_weight_multiplier.value,
             )
 
-            if self.edit_type.value == "Add":
-                # self.add(self.camera)
-                self.add(self.camera)
-            else:
-                self.edit_frame_show.visible = True
+            # if self.edit_type.value == "Add":
+            #     # self.add(self.camera)
+            #     self.add(self.camera)
+            # else:
+            self.edit_frame_show.visible = True
 
-                edit_cameras, train_frames, train_frustums = ui_utils.sample_train_camera(self.colmap_cameras,
-                                                                                          self.edit_cam_num.value,
-                                                                                          self.server)
-                if self.edit_type.value == "Edit":
-                    self.edit(edit_cameras, train_frames, train_frustums)
+            edit_cameras, train_frames, train_frustums = ui_utils.sample_train_camera(self.colmap_cameras,
+                                                                                        self.edit_cam_num.value,
+                                                                                        self.server)
+            if self.edit_type.value == "Edit":
+                self.edit(edit_cameras, train_frames, train_frustums)
 
-                elif self.edit_type.value == "Delete":
-                    self.delete(edit_cameras, train_frames, train_frustums)
+            elif self.edit_type.value == "Delete":
+                self.delete(edit_cameras, train_frames, train_frustums)
+            
+            elif self.edit_type.value == "Add":
+                self.add(edit_cameras, train_frames, train_frustums)
 
-                ui_utils.remove_all(train_frames)
-                ui_utils.remove_all(train_frustums)
-                self.edit_frame_show.visible = False
+            ui_utils.remove_all(train_frames)
+            ui_utils.remove_all(train_frustums)
+            self.edit_frame_show.visible = False
+
             self.guidance = None
             self.training = False
             self.gaussian.anchor_postfix()
@@ -1193,48 +1219,339 @@ class WebUI:
                 self.stop_training = False
                 return
 
-    @torch.no_grad()
-    def add(self, cam):
-        self.draw_bbox.value = False
-        self.inpaint_seed.visible = True
-        self.inpaint_end.visible = True
-        self.refine_text.visible = True
-        self.draw_bbox.visible = False
-        self.left_up.visible = False
-        self.right_down.visible = False
+    # @torch.no_grad()
+    # def add(self, cam):
+    #     self.draw_bbox.value = False
+    #     self.inpaint_seed.visible = True
+    #     self.inpaint_end.visible = True
+    #     self.refine_text.visible = True
+    #     self.draw_bbox.visible = False
+    #     self.left_up.visible = False
+    #     self.right_down.visible = False
 
+    #     if not self.ctn_inpaint:
+    #         from diffusers import (
+    #             StableDiffusionControlNetInpaintPipeline,
+    #             ControlNetModel,
+    #             DDIMScheduler,
+
+    #             AutoPipelineForInpainting
+    #         )
+
+    #         # controlnet = ControlNetModel.from_pretrained(
+    #         #     "lllyasviel/control_v11p_sd15_inpaint", torch_dtype=torch.float16
+    #         # )
+    #         # pipe = StableDiffusionControlNetInpaintPipeline.from_pretrained(
+    #         #     "runwayml/stable-diffusion-v1-5",
+    #         #     controlnet=controlnet,
+    #         #     torch_dtype=torch.float16,
+    #         # )
+            
+    #         pipe = AutoPipelineForInpainting.from_pretrained(
+    #             "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
+    #             torch_dtype=torch.float16,
+    #             variant="fp16",
+    #         ).to("cuda")
+    #         pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
+
+    #         pipe.enable_model_cpu_offload()
+
+    #         self.ctn_inpaint = pipe
+    #         self.ctn_inpaint.set_progress_bar_config(disable=False) #True)
+    #         self.ctn_inpaint.safety_checker = None
+
+    #     print("Finish loading model", flush=True)
+
+    #     with torch.no_grad():
+    #         render_pkg = render(cam, self.gaussian, self.pipe, self.background_tensor)
+
+    #     image_in = to_pil_image(torch.clip(render_pkg["render"], 0.0, 1.0))
+    #     # image_in = to_pil_image(torch.clip(render_pkg["render"], 0.0, 1.0)*255)
+    #     origin_size = image_in.size  # W, H
+
+    #     frustum = None
+    #     frame = None
+    #     while True:
+    #         if self.inpaint_again:
+    #             if frustum is not None:
+    #                 frustum.remove()
+    #                 frame.remove()
+    #             mask_in = torch.zeros(
+    #                 (origin_size[1], origin_size[0]),
+    #                 dtype=torch.float32,
+    #                 device=get_device(),
+    #             )  # H, W
+    #             mask_in[
+    #                 self.left_up.value[1] : self.right_down.value[1],
+    #                 self.left_up.value[0] : self.right_down.value[0],
+    #             ] = 1.0
+
+    #             image_in_pil = to_pil_image(
+    #                 ui_utils.resize_image_ctn(np.asarray(image_in), 512)
+    #             )
+    #             mask_in = to_pil_image(mask_in)  # .resize((1024, 1024))
+    #             mask_in_pil = to_pil_image(
+    #                 ui_utils.resize_image_ctn(np.asarray(mask_in)[..., None], 512)
+    #             )
+
+    #             image = np.array(image_in_pil.convert("RGB")).astype(np.float32) / 255.0
+    #             image_mask = (
+    #                 np.array(mask_in_pil.convert("L")).astype(np.float32) / 255.0
+    #             )
+
+    #             image[image_mask > 0.5] = -1.0  # set as masked pixel
+    #             image = np.expand_dims(image, 0).transpose(0, 3, 1, 2)
+    #             control_image = torch.from_numpy(image).to("cuda")
+    #             generator = torch.Generator(device="cuda").manual_seed(
+    #                 self.inpaint_seed.value
+    #             )
+    #             print("inpaint:", self.edit_text.value, flush=True)
+    #             out = self.ctn_inpaint(
+    #                 # self.edit_text.value+", high quality, extremely detailed",
+    #                 # num_inference_steps=100, #25,
+    #                 # generator=generator,
+    #                 # eta=1.0,
+    #                 # image=image_in_pil,
+    #                 # mask_image=mask_in_pil,
+    #                 # control_image=control_image,
+
+    #                 # SDXL
+    #                 prompt=self.edit_text.value,
+    #                 image=image_in_pil,
+    #                 mask_image=mask_in_pil,
+    #                 guidance_scale=7.5,
+    #                 num_inference_steps=20,
+    #                 strength=0.99,
+    #                 generator=generator,
+    #             ).images[0]
+    #             print("Done inpaint", flush=True)
+    #             out = cv2.resize(
+    #                 np.asarray(out),
+    #                 origin_size,
+    #                 interpolation=cv2.INTER_LANCZOS4
+    #                 if out.width / origin_size[0] > 1
+    #                 else cv2.INTER_AREA,
+    #             )
+    #             out = to_pil_image(out)
+    #             out.save("tmp_inpaint.png")
+    #             frame, frustum = ui_utils.new_frustum_from_cam(
+    #                 list(self.server.get_clients().values())[0].camera,
+    #                 self.server,
+    #                 np.asarray(out),
+    #             )
+    #             self.inpaint_again = False
+    #         else:
+    #             if self.stop_training:
+    #                 self.stop_training = False
+    #                 return
+    #             time.sleep(0.1)
+    #         if self.inpaint_end_flag:
+    #             self.inpaint_end_flag = False
+    #             break
+            
+    #     del self.ctn_inpaint
+    #     self.ctn_inpaint = None
+
+    #     self.inpaint_seed.visible = False
+    #     self.inpaint_end.visible = False
+    #     self.edit_text.visible = False
+
+    #     removed_bg = rembg.remove(out)
+    #     inpainted_image = to_tensor(out).to("cuda")
+    #     frustum.remove()
+    #     frame.remove()
+    #     frame, frustum = ui_utils.new_frustum_from_cam(
+    #         list(self.server.get_clients().values())[0].camera,
+    #         self.server,
+    #         np.asarray(removed_bg),
+    #     )
+
+    #     cache_dir = Path("tmp_add").absolute().as_posix()
+    #     os.makedirs(cache_dir, exist_ok=True)
+    #     mv_image_dir = os.path.join(cache_dir, "multiview_pred_images")
+    #     os.makedirs(mv_image_dir, exist_ok=True)
+    #     inpaint_path = os.path.join(cache_dir, "inpainted.png")
+    #     removed_bg_path = os.path.join(cache_dir, "removed_bg.png")
+    #     mesh_path = os.path.join(cache_dir, "inpaint_mesh.obj")
+    #     gs_path = os.path.join(cache_dir, "inpaint_gs.obj")
+    #     out.save(inpaint_path)
+    #     removed_bg.save(removed_bg_path)
+        
+    #     p1 = subprocess.Popen(
+    #         f"{sys.prefix}/bin/accelerate launch --config_file 1gpu.yaml test_mvdiffusion_seq.py "
+    #         f"--save_dir {mv_image_dir} --config configs/mvdiffusion-joint-ortho-6views.yaml"
+    #         f" validation_dataset.root_dir={cache_dir} validation_dataset.filepaths=[removed_bg.png]".split(
+    #             " "
+    #         ),
+    #         cwd="threestudio/utils/wonder3D",
+    #     )
+    #     p1.wait()
+
+    #     cmd = f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {cache_dir}" \
+    #         + f"--gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)} --verbose"
+    #     print(cmd, flush=True)
+    #     cmd = cmd.split(" ")
+    #     p2 = subprocess.Popen(
+    #         cmd,
+    #         cwd="threestudio/utils/wonder3D/instant-nsr-pl",
+    #     )
+    #     p2.wait()
+
+    #     p3 = subprocess.Popen(
+    #         [
+    #             f"{sys.prefix}/bin/python",
+    #             "train_from_mesh.py",
+    #             "--mesh",
+    #             mesh_path,
+    #             "--save_path",
+    #             gs_path,
+    #             "--prompt",
+    #             self.refine_text.value,
+    #         ]
+    #     )
+    #     p3.wait()
+
+    #     frustum.remove()
+    #     frame.remove()
+
+    #     object_mask = np.array(removed_bg)
+    #     object_mask = object_mask[:, :, 3] > 0
+    #     object_mask = torch.from_numpy(object_mask)
+    #     bbox = masks_to_boxes(object_mask[None])[0].to("cuda")
+
+    #     depth_estimator = DPT(get_device(), mode="depth")
+
+    #     estimated_depth = depth_estimator(
+    #         inpainted_image.moveaxis(0, -1)[None, ...]
+    #     ).squeeze()
+    #     # ui_utils.vis_depth(estimated_depth.cpu())
+    #     object_center = (bbox[:2] + bbox[2:]) / 2
+
+    #     fx = fov2focal(cam.FoVx, cam.image_width)
+    #     fy = fov2focal(cam.FoVy, cam.image_height)
+
+    #     object_center = (
+    #         object_center
+    #         - torch.tensor([cam.image_width, cam.image_height]).to("cuda") / 2
+    #     ) / torch.tensor([fx, fy]).to("cuda")
+
+    #     rendered_depth = render_pkg["depth_3dgs"][..., ~object_mask]
+
+    #     inpainted_depth = estimated_depth[~object_mask]
+    #     object_depth = estimated_depth[..., object_mask]
+
+    #     min_object_depth = torch.quantile(object_depth, 0.05)
+    #     max_object_depth = torch.quantile(object_depth, 0.95)
+    #     obj_depth_scale = (max_object_depth - min_object_depth) * 1
+
+    #     min_valid_depth_mask = (min_object_depth - obj_depth_scale) < inpainted_depth
+    #     max_valid_depth_mask = inpainted_depth < (max_object_depth + obj_depth_scale)
+    #     valid_depth_mask = torch.logical_and(min_valid_depth_mask, max_valid_depth_mask)
+    #     valid_percent = valid_depth_mask.sum() / min_valid_depth_mask.shape[0]
+    #     print("depth valid percent: ", valid_percent, flush=True)
+
+    #     rendered_depth = rendered_depth[0, valid_depth_mask]
+    #     inpainted_depth = inpainted_depth[valid_depth_mask.squeeze()]
+
+    #     ## assuming rendered_depth = a * estimated_depth + b
+    #     y = rendered_depth
+    #     x = inpainted_depth
+    #     a = (torch.sum(x * y) - torch.sum(x) * torch.sum(y)) / (
+    #         torch.sum(x**2) - torch.sum(x) ** 2
+    #     )
+    #     b = torch.sum(y) - a * torch.sum(x)
+
+    #     z_in_cam = object_depth.min() * a + b
+
+    #     self.depth_scaler.visible = True
+    #     self.depth_end.visible = True
+    #     self.refine_text.visible = True
+
+    #     new_object_gaussian = None
+    #     while True:
+    #         if self.scale_depth:
+    #             if new_object_gaussian is not None:
+    #                 self.gaussian.prune_with_mask()
+    #             scaled_z_in_cam = z_in_cam * self.depth_scaler.value
+    #             x_in_cam, y_in_cam = (object_center.cuda()) * scaled_z_in_cam
+    #             T_in_cam = torch.stack([x_in_cam, y_in_cam, scaled_z_in_cam], dim=-1)
+
+    #             bbox = bbox.cuda()
+    #             real_scale = (
+    #                 (bbox[2:] - bbox[:2])
+    #                 / torch.tensor([fx, fy], device="cuda")
+    #                 * scaled_z_in_cam
+    #             )
+
+    #             new_object_gaussian = VanillaGaussianModel(self.gaussian.max_sh_degree)
+    #             new_object_gaussian.load_ply(gs_path)
+    #             new_object_gaussian._opacity.data = (
+    #                 torch.ones_like(new_object_gaussian._opacity.data) * 99.99
+    #             )
+
+    #             new_object_gaussian._xyz.data -= new_object_gaussian._xyz.data.mean(
+    #                 dim=0, keepdim=True
+    #             )
+    #             rotate_gaussians(new_object_gaussian, default_model_mtx.T)
+
+    #             object_scale = (
+    #                 new_object_gaussian._xyz.data.max(dim=0)[0]
+    #                 - new_object_gaussian._xyz.data.min(dim=0)[0]
+    #             )[:2]
+
+    #             relative_scale = (real_scale / object_scale).mean()
+    #             print(relative_scale, flush=True)
+
+    #             scale_gaussians(new_object_gaussian, relative_scale)
+
+    #             new_object_gaussian._xyz.data += T_in_cam
+
+    #             R = torch.from_numpy(cam.R).float().cuda()
+    #             T = -R @ torch.from_numpy(cam.T).float().cuda()
+
+    #             rotate_gaussians(new_object_gaussian, R)
+    #             translate_gaussians(new_object_gaussian, T)
+
+    #             self.gaussian.concat_gaussians(new_object_gaussian)
+    #             self.scale_depth = False
+    #         else:
+    #             if self.stop_training:
+    #                 self.stop_training = False
+    #                 return
+    #             time.sleep(0.01)
+    #         if self.depth_end_flag:
+    #             self.depth_end_flag = False
+    #             break
+    #     self.depth_scaler.visible = False
+    #     self.depth_end.visible = False
+        
+    #     merged_ply_path = os.path.join(cache_dir, "merged.ply")
+    #     self.gaussian.save_ply(merged_ply_path)
+
+    def add(self, edit_cameras, train_frames, train_frustums):
+        
         if not self.ctn_inpaint:
             from diffusers import (
                 StableDiffusionControlNetInpaintPipeline,
                 ControlNetModel,
                 DDIMScheduler,
-
-                AutoPipelineForInpainting
             )
 
-            # controlnet = ControlNetModel.from_pretrained(
-            #     "lllyasviel/control_v11p_sd15_inpaint", torch_dtype=torch.float16
-            # )
-            # pipe = StableDiffusionControlNetInpaintPipeline.from_pretrained(
-            #     "runwayml/stable-diffusion-v1-5",
-            #     controlnet=controlnet,
-            #     torch_dtype=torch.float16,
-            # )
-            
-            pipe = AutoPipelineForInpainting.from_pretrained(
-                "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
+            controlnet = ControlNetModel.from_pretrained(
+                "lllyasviel/control_v11p_sd15_inpaint", torch_dtype=torch.float16
+            )
+            pipe = StableDiffusionControlNetInpaintPipeline.from_pretrained(
+                "runwayml/stable-diffusion-v1-5",
+                controlnet=controlnet,
                 torch_dtype=torch.float16,
-                variant="fp16",
-            ).to("cuda")
+            )
             pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 
             pipe.enable_model_cpu_offload()
 
             self.ctn_inpaint = pipe
-            self.ctn_inpaint.set_progress_bar_config(disable=False) #True)
+            self.ctn_inpaint.set_progress_bar_config(disable=True)
             self.ctn_inpaint.safety_checker = None
-
-        print("Finish loading model", flush=True)
 
         with torch.no_grad():
             render_pkg = render(cam, self.gaussian, self.pipe, self.background_tensor)
@@ -1330,177 +1647,68 @@ class WebUI:
         self.inpaint_end.visible = False
         self.edit_text.visible = False
 
-        removed_bg = rembg.remove(out)
-        inpainted_image = to_tensor(out).to("cuda")
-        frustum.remove()
-        frame.remove()
-        frame, frustum = ui_utils.new_frustum_from_cam(
-            list(self.server.get_clients().values())[0].camera,
-            self.server,
-            np.asarray(removed_bg),
+        num_channels_latents = self.ctn_inpaint.vae.config.latent_channels
+        shape = (
+            1,
+            num_channels_latents,
+            edit_cameras[0].image_height // self.ctn_inpaint.vae_scale_factor,
+            edit_cameras[0].image_height // self.ctn_inpaint.vae_scale_factor,
         )
 
-        cache_dir = Path("tmp_add").absolute().as_posix()
-        os.makedirs(cache_dir, exist_ok=True)
-        mv_image_dir = os.path.join(cache_dir, "multiview_pred_images")
-        os.makedirs(mv_image_dir, exist_ok=True)
-        inpaint_path = os.path.join(cache_dir, "inpainted.png")
-        removed_bg_path = os.path.join(cache_dir, "removed_bg.png")
-        mesh_path = os.path.join(cache_dir, "inpaint_mesh.obj")
-        gs_path = os.path.join(cache_dir, "inpaint_gs.obj")
-        out.save(inpaint_path)
-        removed_bg.save(removed_bg_path)
-        
-        p1 = subprocess.Popen(
-            f"{sys.prefix}/bin/accelerate launch --config_file 1gpu.yaml test_mvdiffusion_seq.py "
-            f"--save_dir {mv_image_dir} --config configs/mvdiffusion-joint-ortho-6views.yaml"
-            f" validation_dataset.root_dir={cache_dir} validation_dataset.filepaths=[removed_bg.png]".split(
-                " "
-            ),
-            cwd="threestudio/utils/wonder3D",
+        latents = torch.zeros(shape, dtype=torch.float16, device="cuda")
+
+        dist_thres = (
+            self.inpaint_scale.value * self.cameras_extent * self.gaussian.percent_dense
         )
-        p1.wait()
-
-        cmd = f"{sys.prefix}/bin/python launch.py --config configs/neuralangelo-ortho-wmask.yaml --save_dir {cache_dir}" \
-            + f"--gpu 0 --train dataset.root_dir={os.path.dirname(mv_image_dir)} dataset.scene={os.path.basename(mv_image_dir)} --verbose"
-        print(cmd, flush=True)
-        cmd = cmd.split(" ")
-        p2 = subprocess.Popen(
-            cmd,
-            cwd="threestudio/utils/wonder3D/instant-nsr-pl",
+        valid_remaining_idx = self.gaussian.get_near_gaussians_by_mask(
+            self.gaussian.mask, dist_thres
         )
-        p2.wait()
+        # Prune and update mask to valid_remaining_idx
+        self.gaussian.prune_with_mask(new_mask=valid_remaining_idx)
 
-        p3 = subprocess.Popen(
-            [
-                f"{sys.prefix}/bin/python",
-                "train_from_mesh.py",
-                "--mesh",
-                mesh_path,
-                "--save_path",
-                gs_path,
-                "--prompt",
-                self.refine_text.value,
-            ]
+        origin_frames = self.render_cameras_list(edit_cameras)
+
+        self.guidance = AddGuidance(
+            guidance=inpaint_2D_mask,
+            latents=latents,
+            gaussian=self.gaussian,
+            origin_frames=origin_frames,
+            text_prompt=self.edit_text.value,
+            per_editing_step=self.per_editing_step.value,
+            edit_begin_step=self.edit_begin_step.value,
+            edit_until_step=self.edit_until_step.value,
+            lambda_l1=self.lambda_l1.value,
+            lambda_p=self.lambda_p.value,
+            lambda_anchor_color=self.lambda_anchor_color.value,
+            lambda_anchor_geo=self.lambda_anchor_geo.value,
+            lambda_anchor_scale=self.lambda_anchor_scale.value,
+            lambda_anchor_opacity=self.lambda_anchor_opacity.value,
+            train_frames=train_frames,
+            train_frustums=train_frustums,
+            cams=edit_cameras,
+            server=self.server,
         )
-        p3.wait()
 
-        frustum.remove()
-        frame.remove()
+        view_index_stack = list(range(len(edit_cameras)))
+        print("view_index_stack", view_index_stack, flush=True)
+        for step in tqdm(range(self.edit_train_steps.value)):
+            if not view_index_stack:
+                view_index_stack = list(range(len(edit_cameras)))
+            view_index = random.choice(view_index_stack)
+            view_index_stack.remove(view_index)
 
-        object_mask = np.array(removed_bg)
-        object_mask = object_mask[:, :, 3] > 0
-        object_mask = torch.from_numpy(object_mask)
-        bbox = masks_to_boxes(object_mask[None])[0].to("cuda")
+            rendering = self.render(edit_cameras[view_index], train=True)["comp_rgb"]
 
-        depth_estimator = DPT(get_device(), mode="depth")
+            loss = self.guidance(rendering, origin_frames[view_index], mask_in, view_index, step)
+            loss.backward()
 
-        estimated_depth = depth_estimator(
-            inpainted_image.moveaxis(0, -1)[None, ...]
-        ).squeeze()
-        # ui_utils.vis_depth(estimated_depth.cpu())
-        object_center = (bbox[:2] + bbox[2:]) / 2
+            self.densify_and_prune(step)
 
-        fx = fov2focal(cam.FoVx, cam.image_width)
-        fy = fov2focal(cam.FoVy, cam.image_height)
-
-        object_center = (
-            object_center
-            - torch.tensor([cam.image_width, cam.image_height]).to("cuda") / 2
-        ) / torch.tensor([fx, fy]).to("cuda")
-
-        rendered_depth = render_pkg["depth_3dgs"][..., ~object_mask]
-
-        inpainted_depth = estimated_depth[~object_mask]
-        object_depth = estimated_depth[..., object_mask]
-
-        min_object_depth = torch.quantile(object_depth, 0.05)
-        max_object_depth = torch.quantile(object_depth, 0.95)
-        obj_depth_scale = (max_object_depth - min_object_depth) * 1
-
-        min_valid_depth_mask = (min_object_depth - obj_depth_scale) < inpainted_depth
-        max_valid_depth_mask = inpainted_depth < (max_object_depth + obj_depth_scale)
-        valid_depth_mask = torch.logical_and(min_valid_depth_mask, max_valid_depth_mask)
-        valid_percent = valid_depth_mask.sum() / min_valid_depth_mask.shape[0]
-        print("depth valid percent: ", valid_percent, flush=True)
-
-        rendered_depth = rendered_depth[0, valid_depth_mask]
-        inpainted_depth = inpainted_depth[valid_depth_mask.squeeze()]
-
-        ## assuming rendered_depth = a * estimated_depth + b
-        y = rendered_depth
-        x = inpainted_depth
-        a = (torch.sum(x * y) - torch.sum(x) * torch.sum(y)) / (
-            torch.sum(x**2) - torch.sum(x) ** 2
-        )
-        b = torch.sum(y) - a * torch.sum(x)
-
-        z_in_cam = object_depth.min() * a + b
-
-        self.depth_scaler.visible = True
-        self.depth_end.visible = True
-        self.refine_text.visible = True
-
-        new_object_gaussian = None
-        while True:
-            if self.scale_depth:
-                if new_object_gaussian is not None:
-                    self.gaussian.prune_with_mask()
-                scaled_z_in_cam = z_in_cam * self.depth_scaler.value
-                x_in_cam, y_in_cam = (object_center.cuda()) * scaled_z_in_cam
-                T_in_cam = torch.stack([x_in_cam, y_in_cam, scaled_z_in_cam], dim=-1)
-
-                bbox = bbox.cuda()
-                real_scale = (
-                    (bbox[2:] - bbox[:2])
-                    / torch.tensor([fx, fy], device="cuda")
-                    * scaled_z_in_cam
-                )
-
-                new_object_gaussian = VanillaGaussianModel(self.gaussian.max_sh_degree)
-                new_object_gaussian.load_ply(gs_path)
-                new_object_gaussian._opacity.data = (
-                    torch.ones_like(new_object_gaussian._opacity.data) * 99.99
-                )
-
-                new_object_gaussian._xyz.data -= new_object_gaussian._xyz.data.mean(
-                    dim=0, keepdim=True
-                )
-                rotate_gaussians(new_object_gaussian, default_model_mtx.T)
-
-                object_scale = (
-                    new_object_gaussian._xyz.data.max(dim=0)[0]
-                    - new_object_gaussian._xyz.data.min(dim=0)[0]
-                )[:2]
-
-                relative_scale = (real_scale / object_scale).mean()
-                print(relative_scale, flush=True)
-
-                scale_gaussians(new_object_gaussian, relative_scale)
-
-                new_object_gaussian._xyz.data += T_in_cam
-
-                R = torch.from_numpy(cam.R).float().cuda()
-                T = -R @ torch.from_numpy(cam.T).float().cuda()
-
-                rotate_gaussians(new_object_gaussian, R)
-                translate_gaussians(new_object_gaussian, T)
-
-                self.gaussian.concat_gaussians(new_object_gaussian)
-                self.scale_depth = False
-            else:
-                if self.stop_training:
-                    self.stop_training = False
-                    return
-                time.sleep(0.01)
-            if self.depth_end_flag:
-                self.depth_end_flag = False
-                break
-        self.depth_scaler.visible = False
-        self.depth_end.visible = False
-        
-        merged_ply_path = os.path.join(cache_dir, "merged.ply")
-        self.gaussian.save_ply(merged_ply_path)
+            self.gaussian.optimizer.step()
+            self.gaussian.optimizer.zero_grad(set_to_none=True)
+            if self.stop_training:
+                self.stop_training = False
+                return
 
     def densify_and_prune(self, step):
         if step <= self.densify_until_step.value:
@@ -1532,6 +1740,27 @@ class WebUI:
 
     @torch.no_grad()
     def render_all_view_with_mask(self, edit_cameras, train_frames, train_frustums):
+        inpaint_2D_mask = []
+        origin_frames = []
+
+        for idx, cam in enumerate(edit_cameras):
+            res = self.render(cam)
+            rgb, mask = res["comp_rgb"], res["masks"]
+            mask = dilate_mask(mask.to(torch.float32), self.mask_dilate.value)
+            if self.fix_holes.value:
+                mask = fill_closed_areas(mask)
+            inpaint_2D_mask.append(mask)
+            origin_frames.append(rgb)
+            train_frustums[idx].remove()
+            mask_view = torch.stack([mask] * 3, dim=3)  # 1 H W C
+            train_frustums[idx] = ui_utils.new_frustums(
+                idx, train_frames[idx], cam, mask_view, True, self.server
+            )
+        return inpaint_2D_mask, origin_frames
+
+        
+    @torch.no_grad()
+    def render_all_view_with_bbox(self, cam, bbox, edit_cameras, train_frames, train_frustums):
         inpaint_2D_mask = []
         origin_frames = []
 
