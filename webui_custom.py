@@ -121,6 +121,7 @@ class WebUI:
         # diffusion model
         self.ip2p = None
         self.ctn_ip2p = None
+        self.custom_diffusion_model = cfg.custom_diffusion_model
 
         self.ctn_inpaint = None
         self.ctn_ip2p = None
@@ -1217,10 +1218,10 @@ class WebUI:
             )
             pipe = StableDiffusionControlNetInpaintPipeline.from_pretrained(
                 # "runwayml/stable-diffusion-v1-5",
-                "model_moongate",
+                self.custom_diffusion_model,
                 controlnet=controlnet,
                 torch_dtype=torch.float16,
-            )
+            ).cuda()
             # pipe = AutoPipelineForInpainting.from_pretrained(
             #     "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
             #     torch_dtype=torch.float16,
@@ -1228,7 +1229,7 @@ class WebUI:
             # ).to("cuda")
             pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 
-            pipe.enable_model_cpu_offload()
+            # pipe.enable_model_cpu_offload()
 
             self.ctn_inpaint = pipe
             self.ctn_inpaint.set_progress_bar_config(disable=False) #True)
@@ -1592,6 +1593,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--gs_source", type=str, required=True)  # gs ply or obj file?
     parser.add_argument("--colmap_dir", type=str, required=True)  #
+    parser.add_argument("--custom_diffusion_model", type=str, default="runwayml/stable-diffusion-v1-5")
 
     args = parser.parse_args()
     webui = WebUI(args)
