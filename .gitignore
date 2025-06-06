@@ -202,3 +202,13 @@ exp/
 !threestudio/data
 !threestudio/utils/wonder3D/mvdiffusion/data
 tmp_add/
+
+*.bin
+*.pt
+*.ckpt
+custom-diffusion/data/*
+custom-diffusion/custom-diffusion-model/*
+log*
+*.out
+*__pycache__*
+*.pyc

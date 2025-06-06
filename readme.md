@@ -64,7 +64,7 @@ See the [original repo](https://github.com/buaacyw/GaussianEditor/blob/master/do
 ### Custom diffusion
 Custom diffusion provides a script to convert the CompVis `delta_model.ckpt` to Diffusers `delta.bin`, please refer the [repo](https://github.com/adobe-research/custom-diffusion/tree/main?tab=readme-ov-file#checkpoint-conversions-for-stable-diffusion-v1-4).
 
-### Alternative method
+### Alternative method (1)
 If the method above fails, follow the steps below to perform the conversion.
 
 1. Clone the Custom-diffusion and Diffusers repositories.
@@ -94,4 +94,33 @@ from diffusers import StableDiffusionPipeline
 pipe = StableDiffusionPipeline.from_pretrained(<dump_path>).to("cuda")
 img = pipe(prompt, num_inference_steps=100, guidance_scale=6.0, eta=1.0)
 img[0][0].save(filename)
+```
+
+### Alternative method (2)
+
+``` bash
+git clone https://github.com/huggingface/diffusers.git
+cd diffusers
+pip install -e .
+cd ../
+
+cd custom-diffusion
+# Download stable diffusion v1.4 checkpoint
+wget https://huggingface.co/CompVis/stable-diffusion-v-1-4-original/resolve/main/sd-v1-4.ckpt
+
+# Create the environment for custom diffusion
+git clone https://github.com/CompVis/stable-diffusion.git
+cd stable-diffusion
+conda env create -f environment.yaml
+conda activate ldm
+pip install clip-retrieval tqdm
+cd ../
+
+# Download the delta checkpoint and convert
+wget <the downloaded delta ckpt path> # *.ckpt
+python convert_ckpt.py \
+    --delta_ckpt <the downloaded delta ckpt path> \
+    --ckpt sd-v1-4.ckpt \
+    --dump_path <the path to save the converted model folder> \
+    --original_config_file stable-diffusion/configs/stable-diffusion/v1-inference.yaml
 ```

@@ -475,6 +475,7 @@ class WebUI:
         def _(_):
             current_time = datetime.datetime.now()
             formatted_time = current_time.strftime("%Y-%m-%d-%H:%M")
+            print("Save Gaussian to ui_result/{}.plt".format(formatted_time), flush=True)
             self.gaussian.save_ply(os.path.join("ui_result", "{}.ply".format(formatted_time)))
         @self.inpaint_end.on_click
         def _(_):
@@ -1148,8 +1149,9 @@ class WebUI:
                 self.ctn_ip2p = ControlNetGuidance(
                     OmegaConf.create({"min_step_percent": 0.05,
                                       "max_step_percent": 0.8,
-                                        "control_type": "p2p"})
-                )
+                                        "control_type": "p2p",
+                                        "pretrained_model_name_or_path": self.custom_diffusion_model,
+                                        "ddim_scheduler_name_or_path": self.custom_diffusion_model}))
             cur_2D_guidance = self.ctn_ip2p
             print("using ControlNet-InstructPix2Pix!")
 
@@ -1221,7 +1223,7 @@ class WebUI:
                 self.custom_diffusion_model,
                 controlnet=controlnet,
                 torch_dtype=torch.float16,
-            ).cuda()
+            ).to("cuda")
             # pipe = AutoPipelineForInpainting.from_pretrained(
             #     "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
             #     torch_dtype=torch.float16,

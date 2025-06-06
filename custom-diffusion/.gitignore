@@ -1,0 +1,9 @@
+*.bin
+*.pt
+*.ckpt
+data/*
+custom-diffusion-model/*
+log*
+*.out
+*__pycache__*
+*.pyc
