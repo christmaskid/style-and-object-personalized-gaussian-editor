@@ -312,6 +312,9 @@ def import_model_class_from_model_name_or_path(pretrained_model_name_or_path: st
 def parse_args(input_args=None):
     parser = argparse.ArgumentParser(description="Simple example of a training script.")
     parser.add_argument(
+        "--modelname", type=str, default="delta.bin"
+    )
+    parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str,
         default=None,
@@ -1060,7 +1063,7 @@ def main(args):
             modifier_token=args.modifier_token,
             modifier_token_id=modifier_token_id,
         )
-        save_path = os.path.join(args.output_dir, f"delta.bin")
+        save_path = os.path.join(args.output_dir, args.modelname) #f"delta.bin")
         pipeline.save_pretrained(save_path, freeze_model=args.freeze_model)
         if args.validation_prompt is not None:
             logger.info(

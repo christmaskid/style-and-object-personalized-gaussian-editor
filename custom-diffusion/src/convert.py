@@ -130,7 +130,7 @@ def convert(ckpt, delta_ckpt, sd_version, config, modelname, mode):
             assert new_key in mapping_compvis_to_diffuser_rev, f"Key {key} not found in mapping_compvis_to_diffuser_rev"
             compvis_st['state_dict'][mapping_compvis_to_diffuser_rev[new_key]] = st['unet'][key]
 
-        torch.save(compvis_st, f'{os.path.dirname(delta_ckpt)}/delta_model.ckpt')
+        torch.save(compvis_st, f'{os.path.dirname(delta_ckpt)}/{modelname}')
         model = load_model_from_config_addtoken(config, f"{ckpt}")
         if 'modifier_token' in st:
             model.cond_stage_model.transformer.text_model.embeddings.token_embedding.weight.data[-len(st['modifier_token']):] = compvis_st['state_dict']['embed']

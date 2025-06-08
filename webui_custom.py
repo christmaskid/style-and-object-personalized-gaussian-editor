@@ -122,6 +122,7 @@ class WebUI:
         self.ip2p = None
         self.ctn_ip2p = None
         self.custom_diffusion_model = cfg.custom_diffusion_model
+        self.style_image = cfg.style_image
 
         self.ctn_inpaint = None
         self.ctn_ip2p = None
@@ -227,7 +228,7 @@ class WebUI:
                 "Edit Type", ("Edit", "Delete", "Add")
             )
             self.guidance_type = self.server.add_gui_dropdown(
-                "Guidance Type", ("InstructPix2Pix", "ControlNet-Pix2Pix")
+                "Guidance Type", ("InstructPix2Pix", "ControlNet-Pix2Pix", "InST")
             )
             self.edit_frame_show = self.server.add_gui_checkbox(
                 "Show Edit Frame", initial_value=True, visible=False
@@ -1136,7 +1137,8 @@ class WebUI:
                 )
 
                 self.ip2p = InstructPix2PixGuidance(
-                    OmegaConf.create({"min_step_percent": 0.02, "max_step_percent": 0.98})
+                    OmegaConf.create({"min_step_percent": 0.02, "max_step_percent": 0.98,
+                                        "ddim_scheduler_name_or_path": self.custom_diffusion_model})
                 )
             cur_2D_guidance = self.ip2p
             print("using InstructPix2Pix!", flush=True)
@@ -1155,6 +1157,22 @@ class WebUI:
             cur_2D_guidance = self.ctn_ip2p
             print("using ControlNet-InstructPix2Pix!")
 
+        elif self.guidance_type.value == "InST":
+            if not self.ctn_ip2p:
+                from threestudio.models.guidance.inst_guidance import (
+                    InSTGuidance,
+                )
+
+                self.ctn_ip2p = InSTGuidance(
+                    OmegaConf.create({"min_step_percent": 0.05,
+                                      "max_step_percent": 0.8,
+                                        "control_type": "p2p",
+                                        "pretrained_model_name_or_path": self.custom_diffusion_model,
+                                        "ddim_scheduler_name_or_path": self.custom_diffusion_model,
+                                        "style_image": self.style_image}))
+            cur_2D_guidance = self.ctn_ip2p
+            print("using InST!")
+        
         origin_frames = self.render_cameras_list(edit_cameras)
         self.guidance = EditGuidance(
             guidance=cur_2D_guidance,
@@ -1195,6 +1213,10 @@ class WebUI:
             if self.stop_training:
                 self.stop_training = False
                 return
+        
+        merged_ply_path = os.path.join("ui_result", self.edit_text.value.replace(" ", '-')+".ply")
+        self.gaussian.save_ply(merged_ply_path)
+        print("Saved.", flush=True)
 
     @torch.no_grad()
     def add(self, cam):
@@ -1596,6 +1618,7 @@ if __name__ == "__main__":
     parser.add_argument("--gs_source", type=str, required=True)  # gs ply or obj file?
     parser.add_argument("--colmap_dir", type=str, required=True)  #
     parser.add_argument("--custom_diffusion_model", type=str, default="runwayml/stable-diffusion-v1-5")
+    parser.add_argument("--style_image", type=str, default=None)  # for InST
 
     args = parser.parse_args()
     webui = WebUI(args)
