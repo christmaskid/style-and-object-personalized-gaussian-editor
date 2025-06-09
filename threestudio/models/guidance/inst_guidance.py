@@ -62,15 +62,9 @@ class InSTGuidance(BaseObject):
     @dataclass
     class Config(BaseObject.Config):
         cache_dir: Optional[str] = None
-        pretrained_model_name_or_path: str = "SG161222/Realistic_Vision_V2.0"
-        ddim_scheduler_name_or_path: str = "runwayml/stable-diffusion-v1-5"
-        control_type: str = "normal"  # normal/canny
+        embedding_path: str = None
         style_image: str = None
 
-        enable_memory_efficient_attention: bool = False
-        enable_sequential_cpu_offload: bool = False
-        enable_attention_slicing: bool = False
-        enable_channels_last_format: bool = False
         guidance_scale: float = 7.5
         condition_scale: float = 1.5
         grad_clip: Optional[
@@ -87,10 +81,6 @@ class InSTGuidance(BaseObject):
 
         use_sds: bool = False
 
-        # Canny threshold
-        canny_lower_bound: int = 50
-        canny_upper_bound: int = 100
-
     cfg: Config
 
     def make_inpaint_condition(self,image, image_mask):
@@ -104,17 +94,17 @@ class InSTGuidance(BaseObject):
         return image
 
     def configure(self) -> None:
-        threestudio.info(f"Loading ControlNet ...")
+        # threestudio.info(f"Loading ControlNet ...")
 
-        controlnet_name_or_path: str
-        if self.cfg.control_type == "normal":
-            controlnet_name_or_path = "lllyasviel/control_v11p_sd15_normalbae"
-        elif self.cfg.control_type == "canny":
-            controlnet_name_or_path = "lllyasviel/control_v11p_sd15_canny"
-        elif self.cfg.control_type == "p2p":
-            controlnet_name_or_path = "lllyasviel/control_v11e_sd15_ip2p"
-        elif self.cfg.control_type == "inpaint":
-            controlnet_name_or_path = "lllyasviel/control_v11p_sd15_inpaint"
+        # controlnet_name_or_path: str
+        # if self.cfg.control_type == "normal":
+        #     controlnet_name_or_path = "lllyasviel/control_v11p_sd15_normalbae"
+        # elif self.cfg.control_type == "canny":
+        #     controlnet_name_or_path = "lllyasviel/control_v11p_sd15_canny"
+        # elif self.cfg.control_type == "p2p":
+        #     controlnet_name_or_path = "lllyasviel/control_v11e_sd15_ip2p"
+        # elif self.cfg.control_type == "inpaint":
+        #     controlnet_name_or_path = "lllyasviel/control_v11p_sd15_inpaint"
 
         self.weights_dtype = (
             torch.float16 if self.cfg.half_precision_weights else torch.float32
@@ -128,11 +118,11 @@ class InSTGuidance(BaseObject):
             "cache_dir": self.cfg.cache_dir,
         }
 
-        controlnet = ControlNetModel.from_pretrained(
-            controlnet_name_or_path,
-            torch_dtype=self.weights_dtype,
-            cache_dir=self.cfg.cache_dir,
-        )
+        # controlnet = ControlNetModel.from_pretrained(
+        #     controlnet_name_or_path,
+        #     torch_dtype=self.weights_dtype,
+        #     cache_dir=self.cfg.cache_dir,
+        # )
         # self.pipe = StableDiffusionControlNetPipeline.from_pretrained(
         #     self.cfg.pretrained_model_name_or_path, controlnet=controlnet, **pipe_kwargs
         # ).to(self.device)
@@ -140,20 +130,24 @@ class InSTGuidance(BaseObject):
         config = "InST/configs/stable-diffusion/v1-inference.yaml"
         ckpt = "custom-diffusion/sd-v1-4.ckpt"
         config = OmegaConf.load(f"{config}")
+        
         self.model = load_model_from_config(config, f"{ckpt}", self.device)
+        self.model.embedding_manager.load(self.cfg.embedding_path)
+        self.model.to(self.device)
+
         self.sampler = DDIMSampler(self.model)
         self.style_image = load_img(self.cfg.style_image) if self.cfg.style_image else None
         self.style_image = repeat(self.style_image, "1 C H W -> B C H W", B=1).to(self.device)
 
-        if self.cfg.control_type == "normal":
-            self.preprocessor = NormalBaeDetector.from_pretrained(
-                "lllyasviel/Annotators"
-            )
-            self.preprocessor.model.to(self.device)
-        elif self.cfg.control_type == "canny":
-            self.preprocessor = CannyDetector()
+        # if self.cfg.control_type == "normal":
+        #     self.preprocessor = NormalBaeDetector.from_pretrained(
+        #         "lllyasviel/Annotators"
+        #     )
+        #     self.preprocessor.model.to(self.device)
+        # elif self.cfg.control_type == "canny":
+        #     self.preprocessor = CannyDetector()
 
-        self.num_train_timesteps = 50
+        self.num_train_timesteps = 1000
         self.set_min_max_steps()  # set to default value
 
         self.alphas: Float[Tensor, "..."] = self.model.alphas_cumprod.to(
@@ -168,38 +162,6 @@ class InSTGuidance(BaseObject):
     def set_min_max_steps(self, min_step_percent=0.02, max_step_percent=0.98):
         self.min_step = int(self.num_train_timesteps * min_step_percent)
         self.max_step = int(self.num_train_timesteps * max_step_percent)
-
-    def prepare_image_cond(self, cond_rgb: Float[Tensor, "B H W C"]):
-        if self.cfg.control_type == "normal":
-            cond_rgb = (
-                (cond_rgb[0].detach().cpu().numpy() * 255).astype(np.uint8).copy()
-            )
-            detected_map = self.preprocessor(cond_rgb)
-            control = (
-                torch.from_numpy(np.array(detected_map)).float().to(self.device) / 255.0
-            )
-            control = control.unsqueeze(0)
-            control = control.permute(0, 3, 1, 2)
-        elif self.cfg.control_type == "canny":
-            cond_rgb = (
-                (cond_rgb[0].detach().cpu().numpy() * 255).astype(np.uint8).copy()
-            )
-            blurred_img = cv2.blur(cond_rgb, ksize=(5, 5))
-            detected_map = self.preprocessor(
-                blurred_img, self.cfg.canny_lower_bound, self.cfg.canny_upper_bound
-            )
-            control = (
-                torch.from_numpy(np.array(detected_map)).float().to(self.device) / 255.0
-            )
-            control = control.unsqueeze(-1).repeat(1, 1, 3)
-            control = control.unsqueeze(0)
-            control = control.permute(0, 3, 1, 2)
-        elif self.cfg.control_type == "p2p":
-            control = cond_rgb.permute(0, 3, 1, 2)
-        elif self.cfg.control_type == "inpaint":
-            control = cond_rgb.permute(0, 3, 1, 2)
-
-        return control
 
     def __call__(
         self,
@@ -221,37 +183,32 @@ class InSTGuidance(BaseObject):
         rgb_BCHW_HW8 = F.interpolate(
             rgb_BCHW, (RH, RW), mode="bilinear", align_corners=False
         )
+        rgb_BCHW_HW8 = rgb_BCHW_HW8 * 2.0 - 1.0  # normalize to [-1, 1]
         latents = self.model.get_first_stage_encoding(
             self.model.encode_first_stage(rgb_BCHW_HW8)
         )
-
-        # image_cond = self.prepare_image_cond(cond_rgb)
-        image_cond = cond_rgb.permute(0, 3, 1, 2)
-        image_cond = F.interpolate(
-            image_cond, (RH, RW), mode="bilinear", align_corners=False
-        )
-
-        temp = torch.zeros(1).to(rgb.device)
-        text_embeddings = prompt_utils.get_text_embeddings(temp, temp, temp, False)
+        # temp = torch.zeros(1).to(rgb.device)
+        # text_embeddings = prompt_utils.get_text_embeddings(temp, temp, temp, False)
 
         # timestep ~ U(0.02, 0.98) to avoid very high/low noise level
-        t = torch.randint(
-            self.min_step,
-            self.max_step + 1,
-            [batch_size],
-            dtype=torch.long,
-            device=self.device,
-        )
+        # t = torch.randint(
+        #     self.min_step,
+        #     self.max_step + 1,
+        #     [batch_size],
+        #     dtype=torch.long,
+        #     device=self.device,
+        # )
 
         uc = self.model.get_learned_conditioning(batch_size * [""], self.style_image)
         c = self.model.get_learned_conditioning(batch_size * ["*"], self.style_image)
-        strength = 0.5
+        strength = 0.3
         scale = 10.
         ddim_steps = 50
+        ddpm_steps = 1000
         ddim_eta = 0.0
         self.sampler.make_schedule(ddim_num_steps=ddim_steps, ddim_eta=ddim_eta, verbose=False)
 
-        t_enc = int(strength * 1000)
+        t_enc = int(strength * ddpm_steps)
         x_noisy = self.model.q_sample(x_start=latents, t=torch.tensor([t_enc]*batch_size).to(self.device))
         model_output = self.model.apply_model(x_noisy, torch.tensor([t_enc]*batch_size).to(self.device), c)
         z_enc = self.sampler.stochastic_encode(latents, torch.tensor([t_enc]*batch_size).to(self.device),
@@ -262,10 +219,38 @@ class InSTGuidance(BaseObject):
                                 unconditional_guidance_scale=scale,
                                 unconditional_conditioning=uc,)
         x_samples = self.model.decode_first_stage(samples)
-        # x_samples = torch.clamp((x_samples + 1.0) / 2.0, min=0.0, max=1.0) * 255.
+        x_samples = torch.clamp((x_samples + 1.0) / 2.0, min=0.0, max=1.0)
         edit_images = F.interpolate(x_samples, (H, W), mode="bilinear")
+        print("edit_images", edit_images.shape, flush=True)
 
-        return {"edit_images": edit_images.permute(0, 2, 3, 1)}
+        # import matplotlib.pyplot as plt
+        # plt.subplot(1, 4, 1)
+        # plt.title("Input Image")
+        # plt.imshow(rgb[0].clamp(0, 1.).detach().cpu().numpy())
+        # print(rgb[0].min(), rgb[0].max(), flush=True)
+        # plt.axis("off")
+        # plt.tight_layout()
+        # plt.subplot(1, 4, 2)
+        # plt.title("Condition Image")
+        # plt.imshow(cond_rgb[0].clamp(0, 1.).detach().cpu().numpy())
+        # print(cond_rgb[0].min(), cond_rgb[0].max(), flush=True)
+        # plt.axis("off")
+        # plt.tight_layout()
+        # plt.subplot(1, 4, 3)
+        # plt.title("Style Image")
+        # plt.imshow(self.style_image[0].detach().cpu().numpy().transpose(1, 2, 0))
+        # print(self.style_image[0].min(), self.style_image[0].max(), flush=True)
+        # plt.axis("off")
+        # plt.tight_layout()
+        # plt.subplot(1, 4, 4)
+        # plt.title("Edited Image")
+        # plt.imshow(edit_images[0].detach().cpu().numpy().transpose(1, 2, 0))
+        # print(edit_images[0].min(), edit_images[0].max(), flush=True)
+        # plt.axis("off")
+        # plt.tight_layout()
+        # plt.savefig(".threestudio_cache/edit_image.png")
+
+        return {"edit_images": edit_images.permute(0, 2, 3, 1)} # rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
 
     def update_step(self, epoch: int, global_step: int, on_load_weights: bool = False):
         # clip grad for stable training as demonstrated in

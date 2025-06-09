@@ -123,6 +123,7 @@ class WebUI:
         self.ctn_ip2p = None
         self.custom_diffusion_model = cfg.custom_diffusion_model
         self.style_image = cfg.style_image
+        self.embedding_path = cfg.embedding_path
 
         self.ctn_inpaint = None
         self.ctn_ip2p = None
@@ -1164,11 +1165,9 @@ class WebUI:
                 )
 
                 self.ctn_ip2p = InSTGuidance(
-                    OmegaConf.create({"min_step_percent": 0.05,
-                                      "max_step_percent": 0.8,
-                                        "control_type": "p2p",
-                                        "pretrained_model_name_or_path": self.custom_diffusion_model,
-                                        "ddim_scheduler_name_or_path": self.custom_diffusion_model,
+                    OmegaConf.create({"min_step_percent": 0.02,
+                                      "max_step_percent": 0.98,
+                                        "embedding_path": self.embedding_path,
                                         "style_image": self.style_image}))
             cur_2D_guidance = self.ctn_ip2p
             print("using InST!")
@@ -1216,7 +1215,7 @@ class WebUI:
         
         merged_ply_path = os.path.join("ui_result", self.edit_text.value.replace(" ", '-')+".ply")
         self.gaussian.save_ply(merged_ply_path)
-        print("Saved.", flush=True)
+        print("Saved to", merged_ply_path, flush=True)
 
     @torch.no_grad()
     def add(self, cam):
@@ -1618,6 +1617,7 @@ if __name__ == "__main__":
     parser.add_argument("--gs_source", type=str, required=True)  # gs ply or obj file?
     parser.add_argument("--colmap_dir", type=str, required=True)  #
     parser.add_argument("--custom_diffusion_model", type=str, default="runwayml/stable-diffusion-v1-5")
+    parser.add_argument("--embedding_path", type=str, default=None)  # for InST
     parser.add_argument("--style_image", type=str, default=None)  # for InST
 
     args = parser.parse_args()

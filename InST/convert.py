@@ -50,7 +50,8 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--config", type=str, default="configs/stable-diffusion/v1-inference.yaml", help="path to config file")
-    parser.add_argument("--ckpt", type=str, default="../style-and-object-personalized-gaussian-editor/custom-diffusion/sd-v1-4.ckpt", help="path to checkpoint file")
+    parser.add_argument("--ckpt", type=str, default="../custom-diffusion/sd-v1-4.ckpt", help="path to checkpoint file")
+    parser.add_argument("--log_dir", type=str)
     args = parser.parse_args()
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -61,7 +62,7 @@ if __name__=="__main__":
     sampler = DDIMSampler(model)
 
     # model.cpu()
-    log_dir = 'van-gogh2025-06-07T16-10-18_van-gogh'
+    log_dir = args.log_dir #'van-gogh2025-06-07T16-10-18_van-gogh'
     model.embedding_manager.load(f'./logs/{log_dir}/checkpoints/embeddings.pt')
     model = model.to(device)
 
