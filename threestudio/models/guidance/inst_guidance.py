@@ -201,7 +201,7 @@ class InSTGuidance(BaseObject):
 
         uc = self.model.get_learned_conditioning(batch_size * [""], self.style_image)
         c = self.model.get_learned_conditioning(batch_size * ["*"], self.style_image)
-        strength = 0.3
+        strength = 0.9
         scale = 10.
         ddim_steps = 50
         ddpm_steps = 1000
