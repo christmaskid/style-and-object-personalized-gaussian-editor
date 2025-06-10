@@ -255,7 +255,7 @@ python main.py --base configs/stable-diffusion/v1-finetune.yaml  \
 
     python webui_custom.py --gs_source </path/to/point_cloud> \
         --colmap_dir <path/to/colmap_dir> \
-        --custom_diffusion_model <path/to/model.pt> \
+        --embedding_path <path/to/model.pt> \
         --style_image <path/to/style_image>
     ```
     E.g.
@@ -263,7 +263,7 @@ python main.py --base configs/stable-diffusion/v1-finetune.yaml  \
     python webui_custom.py \
         --gs_source dataset/bicycle/point_cloud/iteration_7000/point_cloud.ply \
         --colmap_dir dataset/bicycle/ \
-        --custom_diffusion_model InST/logs/van-gogh2025-06-07T16-10-18_van-gogh/checkpoints/model.pt \
+        --embedding_path InST/logs/van-gogh2025-06-07T16-10-18_van-gogh/checkpoints/embeddings.pt \
         --style_image custom-diffusion/data/van-gogh/sunflower.jpg
     ```
     and open the viser UI at http://localhost:8084 or whatever port shown on screen.
