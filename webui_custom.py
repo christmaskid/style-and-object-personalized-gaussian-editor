@@ -124,6 +124,8 @@ class WebUI:
         self.custom_diffusion_model = cfg.custom_diffusion_model
         self.style_image = cfg.style_image
         self.embedding_path = cfg.embedding_path
+        self.model_type = cfg.model_type
+        self.object_image = cfg.object_image        
 
         self.ctn_inpaint = None
         self.ctn_ip2p = None
@@ -1227,38 +1229,29 @@ class WebUI:
         self.left_up.visible = False
         self.right_down.visible = False
 
-        if not self.ctn_inpaint:
+        if not self.ctn_inpaint and self.model_type in ['stable', 'custom']:
             from diffusers import (
                 StableDiffusionControlNetInpaintPipeline,
                 ControlNetModel,
                 DDIMScheduler,
-
-                AutoPipelineForInpainting
             )
 
             controlnet = ControlNetModel.from_pretrained(
                 "lllyasviel/control_v11p_sd15_inpaint", torch_dtype=torch.float16
             )
             pipe = StableDiffusionControlNetInpaintPipeline.from_pretrained(
-                # "runwayml/stable-diffusion-v1-5",
                 self.custom_diffusion_model,
                 controlnet=controlnet,
                 torch_dtype=torch.float16,
             ).to("cuda")
-            # pipe = AutoPipelineForInpainting.from_pretrained(
-            #     "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
-            #     torch_dtype=torch.float16,
-            #     variant="fp16",
-            # ).to("cuda")
-            pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 
-            # pipe.enable_model_cpu_offload()
+            pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 
             self.ctn_inpaint = pipe
             self.ctn_inpaint.set_progress_bar_config(disable=False) #True)
             self.ctn_inpaint.safety_checker = None
 
-        print("Finish loading model", flush=True)
+            print("Finish loading model", flush=True)
 
         with torch.no_grad():
             render_pkg = render(cam, self.gaussian, self.pipe, self.background_tensor)
@@ -1303,41 +1296,37 @@ class WebUI:
                 generator = torch.Generator(device="cuda").manual_seed(
                     self.inpaint_seed.value
                 )
-                print("inpaint:", self.edit_text.value, flush=True)
-                out = self.ctn_inpaint(
-                    self.edit_text.value+", high quality, extremely detailed",
-                    num_inference_steps=100, #25,
-                    generator=generator,
-                    eta=1.0,
-                    image=image_in_pil,
-                    mask_image=mask_in_pil,
-                    control_image=control_image,
+                if self.model_type in ['stable', 'custom']:
+                    print("inpaint:", self.edit_text.value, flush=True)
+                    out = self.ctn_inpaint(
+                        self.edit_text.value+", high quality, extremely detailed",
+                        num_inference_steps=25,
+                        generator=generator,
+                        eta=1.0,
+                        image=image_in_pil,
+                        mask_image=mask_in_pil,
+                        control_image=control_image,
+                    ).images[0]
 
-                    # SDXL
-                    # prompt=self.edit_text.value,
-                    # image=image_in_pil,
-                    # mask_image=mask_in_pil,
-                    # guidance_scale=7.5,
-                    # num_inference_steps=20,
-                    # strength=0.99,
-                    # generator=generator,
-                ).images[0]
-                print("Done inpaint", flush=True)
-                out = cv2.resize(
-                    np.asarray(out),
-                    origin_size,
-                    interpolation=cv2.INTER_LANCZOS4
-                    if out.width / origin_size[0] > 1
-                    else cv2.INTER_AREA,
-                )
-                out = to_pil_image(out)
-                out.save("tmp_inpaint.png")
-                frame, frustum = ui_utils.new_frustum_from_cam(
-                    list(self.server.get_clients().values())[0].camera,
-                    self.server,
-                    np.asarray(out),
-                )
-                self.inpaint_again = False
+                    print("Done inpaint", flush=True)
+                    out = cv2.resize(
+                        np.asarray(out),
+                        origin_size,
+                        interpolation=cv2.INTER_LANCZOS4
+                        if out.width / origin_size[0] > 1
+                        else cv2.INTER_AREA,
+                    )
+                    out = to_pil_image(out)
+                    out.save("tmp_inpaint.png")
+                    
+                    frame, frustum = ui_utils.new_frustum_from_cam(
+                        list(self.server.get_clients().values())[0].camera,
+                        self.server,
+                        np.asarray(out),
+                    )
+                    self.inpaint_again = False
+                else:
+                    break
             else:
                 if self.stop_training:
                     self.stop_training = False
@@ -1347,17 +1336,52 @@ class WebUI:
                 self.inpaint_end_flag = False
                 break
             
-        del self.ctn_inpaint
-        self.ctn_inpaint = None
-
         self.inpaint_seed.visible = False
         self.inpaint_end.visible = False
         self.edit_text.visible = False
 
-        removed_bg = rembg.remove(out)
-        inpainted_image = to_tensor(out).to("cuda")
-        frustum.remove()
-        frame.remove()
+        if self.model_type in ['stable', 'custom']:
+            del self.ctn_inpaint
+            self.ctn_inpaint = None
+            removed_bg = rembg.remove(out)
+            inpainted_image = to_tensor(out).to("cuda")
+            frustum.remove()
+            frame.remove()
+        elif self.model_type == 'paste':
+            img = Image.open(self.object_image).convert('RGB')
+
+            mask_in_ndarray = np.array(mask_in_pil)
+            white_coords = np.argwhere(mask_in_ndarray >= 250)
+            left_up = white_coords[0]
+            right_down = white_coords[-1]
+            
+            img_rmbg = rembg.remove(img)
+            img_rmbg = img_rmbg.resize((right_down[1] - left_up[1], right_down[0] - left_up[0]), resample=Image.LANCZOS)
+            removed_bg = Image.new("RGBA", (mask_in_ndarray.shape[1], mask_in_ndarray.shape[0]), (0, 0, 0, 0))
+            removed_bg.paste(img_rmbg, (left_up[1], left_up[0]), mask=img_rmbg)
+            
+            image_in_pil.paste(img_rmbg, (left_up[1], left_up[0]), mask=img_rmbg)
+            out = image_in_pil
+
+            out = cv2.resize(
+                    np.asarray(out),
+                    origin_size,
+                    interpolation=cv2.INTER_LANCZOS4
+                    if out.width / origin_size[0] > 1
+                    else cv2.INTER_AREA,
+                )
+            out = to_pil_image(out)
+            
+            removed_bg = cv2.resize(
+                        np.asarray(removed_bg),
+                        origin_size,
+                        interpolation=cv2.INTER_LANCZOS4
+                        if removed_bg.width / origin_size[0] > 1
+                        else cv2.INTER_AREA,
+                    )
+            removed_bg = to_pil_image(removed_bg)
+            inpainted_image = to_tensor(out).to("cuda")
+
         frame, frustum = ui_utils.new_frustum_from_cam(
             list(self.server.get_clients().values())[0].camera,
             self.server,
@@ -1619,6 +1643,8 @@ if __name__ == "__main__":
     parser.add_argument("--custom_diffusion_model", type=str, default="runwayml/stable-diffusion-v1-5")
     parser.add_argument("--embedding_path", type=str, default=None)  # for InST
     parser.add_argument("--style_image", type=str, default=None)  # for InST
+    parser.add_argument("--model_type", type=str, choices=['stable', 'custom', 'paste'], default='stable')
+    parser.add_argument("--object_image", type=str, default=None)
 
     args = parser.parse_args()
     webui = WebUI(args)
