@@ -131,12 +131,57 @@ python convert_ckpt.py \
 ```
 This will create a diffuser-formatted model checkpoint directory at root directory.
 
+
+## Custom object insertion
+There are two ways to insert custom objects: custom diffusion and copy-paste.
+
+### Custom diffusion
+#### Model preparation
+To use this method, you need to prepare a custom diffusion model.
+Some checkpoints can be downloaded from the [custom diffusion webpage](https://www.cs.cmu.edu/~custom-diffusion/assets/models/).
+If you use the checkpoint provided above, please refer to [Checkpoint conversion](#checkpoint-conversion) section to convert it into the diffuser-compatible format.
+You can also train your own custom diffusion model. Please refer to the [Training concept](#training-concept) section for more details. 
+
+#### Object insertion
+Once you have prepared the model, you can generate an object based on it and insert it into the scene using the following steps.
+
+1. Activate WebUI in browser.
+    ```bash
+    python webui_custom.py --gs_source </path/to/point_cloud> \
+        --colmap_dir <path/to/colmap_dir> \
+        --model_type custom \
+        --custom_diffusion_model <path/to/model.pt>
+    ```
+2. In the WebUI browser, select `Edit type` as "add", enter your prompt, and draw a bounding box. Then, click "Edit begin" to generate the object inside the box.
+3. Click "End Inpainting" to start converting the 2D object into a 3D object. This process may take around 2 hours, depending on your device.
+
+### Copy paste
+If you do not want to train a custom diffusion model, you can also paste your object directly into the scene. Please follow the steps below.
+
+1. Activate WebUI in browser.
+    ```bash
+    python webui_custom.py --gs_source </path/to/point_cloud> \
+        --colmap_dir <path/to/colmap_dir> \
+        --model_type paste \
+        --object_image <path/to/object_image>
+    ```
+2. In the WebUI browser, select `Edit type` as "add", and draw a bounding box. Then, click "Edit begin" to paste the object inside the box.
+3. Click "End Inpainting" to start converting the 2D object into a 3D object. This process may take around 2 hours, depending on your device.
+
+Note that the height-to-width ratio of the object image and the bounding box should be similar; otherwise, the object may look distorted due to resizing.
+
+### Examples
+We provide some point clouds [here](https://drive.google.com/drive/folders/1Kxhwf_KlD1zHkEPO-Ws0BzVH2dgkYSpD?usp=drive_link). Download the `demo.zip` file to access six trained point clouds along with their corresponding inpainted images.
+
+
 ## Style transfer editing
 
-You can download the following files via the links:
-- data: https://drive.google.com/drive/folders/1HwKIu6M0yqtYcGg6U6n-9yyw0vBvxMON?usp=drive_link
+You can download the following files [here](https://drive.google.com/drive/folders/1bgpC7f8YVUshELqxcDaTmVHFY5uHKXxZ?usp=sharing), which contains the following subfolders:
+- data
     - place it under `custom-diffusion/` for following training.
-- trained point clouds: https://drive.google.com/drive/folders/1bgpC7f8YVUshELqxcDaTmVHFY5uHKXxZ?usp=sharing
+- trained concept checkpoints
+    - here we only provide the "delta" checkpoint (Custom Diffusion) and embeddings (InST). To create full models, please refer to the [Checkpoint Conversion](#checkpoint-conversion) section.
+- trained point clouds
 
 ### Training concept
 #### Custom Diffusion
@@ -197,12 +242,12 @@ python main.py --base configs/stable-diffusion/v1-finetune.yaml  \
     ```
     and open the viser UI at http://localhost:8084 or whatever port shown on screen.
 
-2. In the WebUI browser, select "InstructPix2Pix" under the Edit type.
+2. In the WebUI browser, select "InstructPix2Pix" under the guidance type.
 3. Enter prompt in the box. E.g. "turn into \<new1\> style."
 4. Click "Edit begin" to launch the editting process.
 5. The final point cloud will be saved as `ui_result/<prompt>.ply`.
 
-#### InST guidance
+#### InST
 
 1. Activate WebUI in browser.
     ```bash
@@ -223,49 +268,7 @@ python main.py --base configs/stable-diffusion/v1-finetune.yaml  \
     ```
     and open the viser UI at http://localhost:8084 or whatever port shown on screen.
 
-2. In the WebUI browser, select "InST" under the Edit type.
+2. In the WebUI browser, select "InST" under the guidance type.
 3. Enter whatever into the prompt box (since we will not use it in InST conversion).
 4. Click "Edit begin" to launch the editting process.
 5. The final point cloud will be saved as `ui_result/<prompt>.ply`.
-
-## Custom object insertion
-There are two ways to insert custom objects: custom diffusion and copy-paste.
-
-### Custom diffusion
-#### Model preparation
-To use this method, you need to prepare a custom diffusion model.
-Some checkpoints can be downloaded from the [custom diffusion webpage](https://www.cs.cmu.edu/~custom-diffusion/assets/models/).
-If you use the checkpoint provided above, please refer to [Checkpoint conversion](#checkpoint-conversion) section to convert it into the diffuser-compatible format.
-You can also train your own custom diffusion model. Please refer to the [Training concept](#training-concept) section for more details. 
-
-#### Object insertion
-Once you have prepared the model, you can generate an object based on it and insert it into the scene using the following steps.
-
-1. Activate WebUI in browser.
-    ```bash
-    python webui_custom.py --gs_source </path/to/point_cloud> \
-        --colmap_dir <path/to/colmap_dir> \
-        --model_type custom \
-        --custom_diffusion_model <path/to/model.pt>
-    ```
-2. In the WebUI browser, select `Edit type` as "add", enter your prompt, and draw a bounding box. Then, click "Edit begin" to generate the object inside the box.
-3. Click "End Inpainting" to start converting the 2D object into a 3D object. This process may take around 2 hours, depending on your device.
-
-### Copy paste
-If you do not want to train a custom diffusion model, you can also paste your object directly into the scene. Please follow the steps below.
-
-1. Activate WebUI in browser.
-    ```bash
-    python webui_custom.py --gs_source </path/to/point_cloud> \
-        --colmap_dir <path/to/colmap_dir> \
-        --model_type paste \
-        --object_image <path/to/object_image>
-    ```
-2. In the WebUI browser, select `Edit type` as "add", and draw a bounding box. Then, click "Edit begin" to paste the object inside the box.
-3. Click "End Inpainting" to start converting the 2D object into a 3D object. This process may take around 2 hours, depending on your device.
-
-Note that the height-to-width ratio of the object image and the bounding box should be similar; otherwise, the object may look distorted due to resizing.
-
-### Examples
-We provide some point clouds [here](https://drive.google.com/drive/folders/1Kxhwf_KlD1zHkEPO-Ws0BzVH2dgkYSpD?usp=drive_link). Download the `demo.zip` file to access six trained point clouds along with their corresponding inpainted images.
-
