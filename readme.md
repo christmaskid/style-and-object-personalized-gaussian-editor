@@ -129,9 +129,15 @@ python convert_ckpt.py \
 ```
 This will create a diffuser-formatted model checkpoint directory at root directory.
 
-## Training style transfer editing
+## Style transfer editing
 
-### Custom Diffusion
+You can download the following files via the links:
+- data: https://drive.google.com/drive/folders/1HwKIu6M0yqtYcGg6U6n-9yyw0vBvxMON?usp=drive_link
+    - place it under `custom-diffusion/` for following training.
+- trained point clouds: https://drive.google.com/drive/folders/1bgpC7f8YVUshELqxcDaTmVHFY5uHKXxZ?usp=sharing
+
+### Training concept
+#### Custom Diffusion
 ```bash
 conda activate ldm
 cd custom-diffusion
@@ -152,7 +158,7 @@ bash train_new_concept.sh van-gogh data/van-gogh "a painting of <new1> style" "<
 
 This will create a `delta_{name}.bin` under the `custom-diffusion/custom-diffusion-model`, and is converted into `delta_{name}.ckpt` and `model_{name}` as diffuser format.
 
-### InST
+#### InST
 ```bash
 conda activate ldm
 cd InST
@@ -170,7 +176,7 @@ python main.py --base configs/stable-diffusion/v1-finetune.yaml  \
 --data_root ../custom-diffusion/data/van-gogh/
 ```
 
-### GaussianEditor
+### Editing: GaussianEditor
 #### Custom Diffusion
 1. Activate WebUI in browser.
     ```bash
