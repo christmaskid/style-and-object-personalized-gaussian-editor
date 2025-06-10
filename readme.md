@@ -31,6 +31,12 @@ conda env create -f environment.yaml
 conda activate ldm
 pip install clip-retrieval tqdm
 cd ../../
+
+# conda activate ldm
+git clone https://github.com/huggingface/diffusers.git
+# cd diffusers
+# pip install -e .
+# cd ../
 ```
 
 To use Gaussian Editor's web UI, install their modified version of viser:
@@ -112,11 +118,6 @@ img[0][0].save(filename)
 ### Alternative method (2) -->
 
 ``` bash
-git clone https://github.com/huggingface/diffusers.git
-cd diffusers
-pip install -e .
-cd ../
-
 cd custom-diffusion
 # Download stable diffusion v1.4 checkpoint
 wget https://huggingface.co/CompVis/stable-diffusion-v-1-4-original/resolve/main/sd-v1-4.ckpt
@@ -129,7 +130,28 @@ python convert_ckpt.py \
     --dump_path <the path to save the converted model folder> \
     --original_config_file stable-diffusion/configs/stable-diffusion/v1-inference.yaml
 ```
-This will create a diffuser-formatted model checkpoint directory at root directory.
+This will create a CompVis-formatted model checkpoint directory at root directory.
+
+### InST
+```bash
+conda activate ldm
+cd InST
+python convert.py --log_dir <logdir/name/under/InST/logs>
+
+cd ../diffusers/scripts
+python convert_original_stable_diffusion_to_diffusers.py \
+    --checkpoint_path ../../../InST/logs/<logdir>/checkpoints/model.pt \
+    --original_config_file ../../../InST/configs/stable-diffusion/v1-inference.yaml \
+    --dump_path </path/to/save/ckpt/dir>
+```
+E.g.
+```bash
+python convert.py --log_dir van-gogh2025-06-07T16-10-18_van-gogh
+
+python convert_original_stable_diffusion_to_diffusers.py --checkpoint_path ../../../InST/logs/van-gogh2025-06-07T16-10-18_van-gogh/checkpoints/model.pt --original_config_file ../../../InST/configs/stable-diffusion/v1-inference.yaml --dump_path ../../model_van-gogh_inst
+```
+The first command creates `model.pt` under `InST/logs/van-gogh2025-06-07T16-10-18_van-gogh/checkpoints`. 
+The second one creates `model_van-gogh_inst` at root directory in CompVis format.
 
 
 ## Custom object insertion
@@ -203,7 +225,7 @@ E.g.:
 bash train_new_concept.sh van-gogh data/van-gogh "a painting of <new1> style" "<new1>" "vangogh+art+painting"
 ```
 
-This will create a `delta_{name}.bin` under the `custom-diffusion/custom-diffusion-model`, and is converted into `delta_{name}.ckpt` and `model_{name}` as diffuser format.
+This will create a `delta_{name}.bin` under the `custom-diffusion/custom-diffusion-model`, and is converted into `delta_{name}.ckpt` and `model_{name}` as CompVis format.
 
 #### InST
 ```bash
